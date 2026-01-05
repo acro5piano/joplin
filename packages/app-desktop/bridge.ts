@@ -255,6 +255,10 @@ export class Bridge {
 		return this.altInstanceId_;
 	}
 
+	public noMenuBar() {
+		return process.argv.includes('--no-menu-bar') || process.env.JOPLIN_NO_MENU_BAR === '1';
+	}
+
 	// Applies to electron-context-menu@3:
 	//
 	// For now we have to disable spell checking in non-editor text
