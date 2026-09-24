@@ -1,0 +1,121 @@
+name: Sync and release no-menubar AppImage
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: sync-no-menubar-release
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync branches
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.revision.outputs.commit }}
+      dev_commit: ${{ steps.revision.outputs.dev_commit }}
+    steps:
+      - name: Check out selected workflow branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream https://github.com/laurent22/joplin.git
+
+      - name: Merge upstream dev into origin dev
+        run: |
+          git fetch --prune upstream dev
+          git fetch --prune origin dev no-menubar
+          git checkout -B dev origin/dev
+          git merge --no-edit upstream/dev
+          git push origin HEAD:dev
+
+      - name: Merge origin dev into origin no-menubar
+        run: |
+          git fetch origin dev
+          git checkout -B no-menubar origin/no-menubar
+          git merge --no-edit origin/dev
+          git push origin HEAD:no-menubar
+
+      - name: Record revisions
+        id: revision
+        run: |
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "dev_commit=$(git rev-parse origin/dev)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build AppImage
+    needs: sync
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out merged no-menubar revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.sync.outputs.commit }}
+
+      - name: Setup build environment
+        uses: ./.github/workflows/shared/setup-build-environment
+
+      - name: Install dependencies
+        env:
+          IS_CONTINUOUS_INTEGRATION: 1
+          BUILD_SEQUENCIAL: 1
+        run: yarn install
+
+      - name: Build AppImage
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          IS_CONTINUOUS_INTEGRATION: 1
+          BUILD_SEQUENCIAL: 1
+          USE_HARD_LINKS: 'false'
+        working-directory: packages/app-desktop
+        run: yarn dist --linux AppImage --publish=never
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: no-menubar-appimage
+          path: packages/app-desktop/dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Create GitHub release
+    needs: [sync, build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: no-menubar-appimage
+          path: release-assets
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NO_MENUBAR_COMMIT: ${{ needs.sync.outputs.commit }}
+          DEV_COMMIT: ${{ needs.sync.outputs.dev_commit }}
+        run: |
+          tag="no-menubar-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          app_image=(release-assets/*.AppImage)
+          if [ "${#app_image[@]}" -ne 1 ] || [ ! -f "${app_image[0]}" ]; then
+            echo "Expected exactly one AppImage, found ${#app_image[@]}" >&2
+            exit 1
+          fi
+          gh release create "$tag" "${app_image[0]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$NO_MENUBAR_COMMIT" \
+            --title "No-menubar AppImage ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
+            --prerelease \
+            --notes "Built from no-menubar commit ${NO_MENUBAR_COMMIT}, after syncing dev to ${DEV_COMMIT}."
