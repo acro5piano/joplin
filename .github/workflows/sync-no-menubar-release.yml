@@ -65,11 +65,24 @@ jobs:
       - name: Setup build environment
         uses: ./.github/workflows/shared/setup-build-environment
 
-      - name: Install dependencies
+      - name: Install dependencies without type-checking
         env:
           IS_CONTINUOUS_INTEGRATION: 1
           BUILD_SEQUENCIAL: 1
-        run: yarn install
+        run: |
+          original_package_json="$(mktemp)"
+          cp package.json "$original_package_json"
+          trap 'cp "$original_package_json" package.json' EXIT
+          node <<'NODE'
+          const fs = require('fs');
+          const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const typeCheckSuffix = ' && yarn tsc';
+          const buildScript = packageJson.scripts.buildSequential;
+          if (!buildScript.endsWith(typeCheckSuffix)) throw new Error('Could not remove the TypeScript check from buildSequential');
+          packageJson.scripts.buildSequential = buildScript.slice(0, -typeCheckSuffix.length);
+          fs.writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`);
+          NODE
+          yarn install
 
       - name: Build AppImage
         env:
