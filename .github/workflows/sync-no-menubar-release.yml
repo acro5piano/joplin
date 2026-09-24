@@ -16,6 +16,7 @@ jobs:
     outputs:
       commit: ${{ steps.revision.outputs.commit }}
       dev_commit: ${{ steps.revision.outputs.dev_commit }}
+      version: ${{ steps.revision.outputs.version }}
     steps:
       - name: Check out selected workflow branch
         uses: actions/checkout@v6
@@ -47,8 +48,10 @@ jobs:
       - name: Record revisions
         id: revision
         run: |
+          version=$(node -p "require('./packages/app-desktop/package.json').version")
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "dev_commit=$(git rev-parse origin/dev)" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build AppImage
@@ -121,6 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NO_MENUBAR_COMMIT: ${{ needs.sync.outputs.commit }}
           DEV_COMMIT: ${{ needs.sync.outputs.dev_commit }}
+          APP_VERSION: ${{ needs.sync.outputs.version }}
         run: |
           tag="no-menubar-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           app_image=(release-assets/*.AppImage)
@@ -131,6 +135,6 @@ jobs:
           gh release create "$tag" "${app_image[0]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$NO_MENUBAR_COMMIT" \
-            --title "No-menubar AppImage ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
-            --prerelease \
+            --title "v${APP_VERSION}@no-menubar" \
+            --latest \
             --notes "Built from no-menubar commit ${NO_MENUBAR_COMMIT}, after syncing dev to ${DEV_COMMIT}."
