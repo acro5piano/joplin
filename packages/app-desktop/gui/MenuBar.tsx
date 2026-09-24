@@ -1104,20 +1104,9 @@ function useMenu(props: Props) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Electron MenuItemConstructorOptions has heterogeneous shapes (submenu/role/type/click vary by item kind); the menu structure is built dynamically
 function MenuBar(props: Props): any {
-	const menu = useMenu(props);
-
 	useEffect(() => {
-		// Currently, this sets the menu for all windows. Although it's possible to set the menu
-		// for individual windows with BrowserWindow.setMenu, it causes issues with updating the
-		// state of existing menu items (and doesn't work with MacOS/Playwright).
-		if (menu) {
-			Menu.setApplicationMenu(menu);
-		}
-	}, [menu]);
-
-	useEffect(() => {
-		applyMenuBarVisibility(props.windowId, props.showMenuBar);
-	}, [props.showMenuBar, props.windowId]);
+			Menu.setApplicationMenu(null);
+	}, []);
 
 	return null;
 }
