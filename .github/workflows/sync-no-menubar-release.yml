@@ -83,7 +83,7 @@ jobs:
           fs.writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`);
           NODE
           yarn install
-          yarn workspaces foreach --worktree --parallel --verbose --interlaced --exclude @joplin/app-desktop run tsc
+          yarn workspaces foreach --worktree --parallel --verbose --interlaced --exclude root --exclude @joplin/app-desktop run tsc
           yarn workspace @joplin/app-desktop tsc --noUnusedLocals false --noUnusedParameters false
 
       - name: Build AppImage
