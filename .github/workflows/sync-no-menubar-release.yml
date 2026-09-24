@@ -65,7 +65,7 @@ jobs:
       - name: Setup build environment
         uses: ./.github/workflows/shared/setup-build-environment
 
-      - name: Install dependencies without type-checking
+      - name: Install dependencies and compile shared library
         env:
           IS_CONTINUOUS_INTEGRATION: 1
           BUILD_SEQUENCIAL: 1
@@ -83,6 +83,7 @@ jobs:
           fs.writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`);
           NODE
           yarn install
+          yarn workspace @joplin/lib tsc
 
       - name: Build AppImage
         env:
