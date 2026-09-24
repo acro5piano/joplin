@@ -1067,30 +1067,12 @@ function useMenu(props: Props) {
 	return menu;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Old code before rule was applied
-function MenuBar(props: Props): any {
+function MenuBar(): null {
 	useEffect(() => {
 		Menu.setApplicationMenu(null);
 	}, []);
 
   return null;
-
-	// const menu = useMenu(props);
-	//
-	// useEffect(() => {
-	// 	// Currently, this sets the menu for all windows. Although it's possible to set the menu
-	// 	// for individual windows with BrowserWindow.setMenu, it causes issues with updating the
-	// 	// state of existing menu items (and doesn't work with MacOS/Playwright).
-	// 	if (menu) {
-	// 		Menu.setApplicationMenu(menu);
-	// 	}
-	// }, [menu]);
-	//
-	// useEffect(() => {
-	// 	applyMenuBarVisibility(props.windowId, props.showMenuBar);
-	// }, [props.showMenuBar, props.windowId]);
-	//
-	// return null;
 }
 
 
